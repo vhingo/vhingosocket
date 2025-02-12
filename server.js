@@ -25,10 +25,10 @@ app.get("/api/data-fetch", async (req, resp) => {
 })
 
 app.post("/data-sent", async (req, resp) => {
-    let value = [12,"allGood",'4:24 PM',2,"USER"];
+    let value = [12, "allGood", '4:24 PM', 2, "USER"];
     let queryData = 'INSERT INTO chats (user_id, message, time,admin_id,sendername ) VALUES (?, ?, ?,?,?)';
-    const result = await query(queryData,value);
-    console.log("result",result);
+    const result = await query(queryData, value);
+    console.log("result", result);
 })
 
 
@@ -42,24 +42,30 @@ io.on('connection', (socket) => {
 
     //update code for
     socket.on("tracking", async (btnKaMsg) => {
-        const room = btnKaMsg.room;
-        const longitude = btnKaMsg.location.longitude;
-        const latitude = btnKaMsg.location.latitude;
-        const tracking_status = btnKaMsg.status;
-
         try {
+            const room = btnKaMsg.room;
+            const longitude = btnKaMsg.location.longitude;
+            const latitude = btnKaMsg.location.latitude;
+            const tracking_status = btnKaMsg.status;
+
+
             const updateQuery = "UPDATE vendorlocations SET latitude = ?, longitude = ?, tracking_status = ? WHERE vendor_id = ?";
             const result = await query(updateQuery, [latitude, longitude, tracking_status, room]);
             console.log("result update successfully");
+
+            socket.join(room);
+            socket.emit("room connected", "Ho gaya room connection");
+            console.log("location", btnKaMsg);
+            socket.to(room).emit("message received", btnKaMsg);
+            io.to(room).emit("track location", btnKaMsg);
+
+
+
         } catch (e) {
             console.log("error", e);
         }
 
-        socket.join(room);
-        socket.emit("room connected", "Ho gaya room connection");
-        console.log("location", btnKaMsg);
-        socket.to(room).emit("message received", btnKaMsg);
-        io.to(room).emit("track location", btnKaMsg);
+
     });
 
     //for chats
@@ -82,17 +88,17 @@ io.on('connection', (socket) => {
         socket.join(room);
         try {
             if (user_id) {
-                const values = [user_id,message,time,+admin_id,sendername];
+                const values = [user_id, message, time, +admin_id, sendername];
                 const insertQuery = 'INSERT INTO chats (user_id, message, time,admin_id,sendername ) VALUES (?, ?, ?,?,?)';
-                const result = await query(insertQuery,values);
-                console.log("result message add successfully");  
-            }else{
-                const values = [vendor_id,message,time,+admin_id,sendername];
+                const result = await query(insertQuery, values);
+                console.log("result message add successfully");
+            } else {
+                const values = [vendor_id, message, time, +admin_id, sendername];
                 const insertQuery = 'INSERT INTO chats (vendor_id, message, time,admin_id,sendername ) VALUES (?, ?, ?,?,?)';
-                const result = await query(insertQuery,values);
+                const result = await query(insertQuery, values);
                 console.log("result message add successfully");
             }
-          
+
         } catch (e) {
             console.log("error", e);
         }

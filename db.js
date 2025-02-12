@@ -2,9 +2,9 @@ import mysql from 'mysql';
 
 const db = mysql.createConnection({
   host: '93.127.185.122',
-  port : 3306,
-  user: 'vhingo_socket',
-  password: 'socket123',
+  port: 3306,
+  user: 'vhingo_socket2',
+  password: 'cfKoRBzn0fTw',
   database: 'vhingo_db',
   connectTimeout: 20000
 });
