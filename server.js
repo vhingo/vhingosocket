@@ -57,7 +57,15 @@ io.on('connection', (socket) => {
             socket.emit("room connected", "Ho gaya room connection");
             console.log("location", btnKaMsg);
             socket.to(room).emit("message received", btnKaMsg);
-            io.to(room).emit("track location", btnKaMsg);
+            // io.to(room).emit("track location", btnKaMsg);
+            io.to(room).emit("track location", btnKaMsg, (acknowledgment) => {
+                if (acknowledgment.success) {
+                    console.log("Client acknowledged location update:", acknowledgment.message);
+                } else {
+                    console.error("Client reported an error:", acknowledgment.message);
+                }
+            });
+
 
 
 
