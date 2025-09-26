@@ -41,45 +41,52 @@ io.on('connection', (socket) => {
     socket.emit("userConnected", "Connected Successfully");
 
     //update code for
-socket.on("tracking", async (btnKaMsg) => {
-  try {
-    const room = btnKaMsg?.room;
-    const longitude = btnKaMsg?.location?.longitude;
-    const latitude = btnKaMsg?.location?.latitude;
-    const tracking_status = btnKaMsg?.status || null;
+    socket.on("tracking", async (btnKaMsg) => {
+    try {
+        const room = btnKaMsg?.room;
+        const { latitude, longitude } = btnKaMsg?.location || {};
+        const tracking_status = btnKaMsg?.status || null;
 
-    if (!room || !latitude || !longitude) {
-      console.warn("⚠️ Missing required tracking data:", btnKaMsg);
-      return socket.emit("tracking-error", "Invalid tracking data received");
+        // Validate input
+        if (!room || latitude === undefined || longitude === undefined) {
+        console.warn("⚠️ Missing required tracking data:", btnKaMsg);
+        return socket.emit("tracking-error", "Invalid tracking data received");
+        }
+
+        console.log("📍 Params:", { room, latitude, longitude, tracking_status });
+
+        // ✅ Step 1: Update first
+        const updateQuery = `
+        UPDATE vendorlocations 
+        SET latitude = ?, longitude = ?, tracking_status = ?
+        WHERE vendor_id = ?
+        `;
+        const updateResult = await query(updateQuery, [latitude, longitude, tracking_status, room]);
+        console.log("🔢 Update result:", updateResult);
+
+        // ✅ Step 2: If no rows updated, insert new record
+        if (updateResult.affectedRows === 0) {
+        const insertQuery = `
+            INSERT INTO vendorlocations (vendor_id, latitude, longitude, tracking_status)
+            VALUES (?, ?, ?, ?)
+        `;
+        const insertResult = await query(insertQuery, [room, latitude, longitude, tracking_status]);
+        console.log("✅ Insert result:", insertResult);
+        }
+
+        // ✅ Step 3: Join room and emit to clients
+        socket.join(room);
+        socket.emit("room connected", `✅ Joined room ${room}`);
+
+        // Broadcast updated location to all clients in the room
+        io.to(room).emit("track location", btnKaMsg);
+        console.log(`📡 "track location" sent to room: ${room}`);
+    } catch (e) {
+        console.error("💥 Error in tracking handler:", e);
+        socket.emit("tracking-error", "Server error while processing tracking data");
     }
+    });
 
-    // 🧭 Step 1: Update DB
-    const updateQuery = `
-      UPDATE vendorlocations 
-      SET latitude = ?, longitude = ?, tracking_status = ? 
-      WHERE vendor_id = ?`;
-    await query(updateQuery, [latitude, longitude, tracking_status, room]);
-    console.log(`✅ Location updated for vendor_id: ${room}`);
-
-    // 🧭 Step 2: Join Room
-    socket.join(room);
-    socket.emit("room connected", `✅ Joined room ${room}`);
-    console.log(`🚪 Socket ${socket.id} joined room ${room}`);
-
-    // 🧭 Step 3: Debug Data
-    console.log("📦 Received tracking data:", btnKaMsg);
-
-    // 🧭 Step 4: Broadcast to all clients in room
-    socket.to(room).emit("message received", btnKaMsg);
-    io.to(room).emit("track location", btnKaMsg);
-
-    console.log(`📡 "track location" sent to room: ${room}`);
-
-  } catch (e) {
-    console.error("💥 Error in tracking handler:", e);
-    socket.emit("tracking-error", "Server error while processing tracking data");
-  }
-});
 
 
     //for chats
