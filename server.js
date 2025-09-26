@@ -59,13 +59,25 @@ io.on('connection', (socket) => {
             socket.to(room).emit("message received", btnKaMsg);
             // io.to(room).emit("track location", btnKaMsg);
 
+            // io.to(room).emit("track location", btnKaMsg, (acknowledgment) => {
+            //     if (acknowledgment.success) {
+            //         console.log("Client acknowledged location update:", acknowledgment.message);
+            //     } else {
+            //         console.error("Client reported an error:", acknowledgment.message);
+            //     }
+            // });
+
             io.to(room).emit("track location", btnKaMsg, (acknowledgment) => {
-                if (acknowledgment.success) {
-                    console.log("Client acknowledged location update:", acknowledgment.message);
-                } else {
-                    console.error("Client reported an error:", acknowledgment.message);
-                }
+            // 🧱 Always check if callback exists & is valid
+            if (acknowledgment && acknowledgment.success) {
+                console.log("✅ Client acknowledged location update:", acknowledgment.message);
+            } else if (acknowledgment && !acknowledgment.success) {
+                console.warn("⚠️ Client reported an error:", acknowledgment.message);
+            } else {
+                console.warn("⚠️ No acknowledgment received from client or invalid format");
+            }
             });
+
 
 
 
