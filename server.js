@@ -67,7 +67,7 @@ io.on('connection', (socket) => {
             //     }
             // });
 
-            io.timeout(3000).to(room).emit("track location", btnKaMsg, (acknowledgment) => {
+            io.timeout(5000).to(room).emit("track location", btnKaMsg, (acknowledgment) => {
             // 🧱 Always check if callback exists & is valid
             if (acknowledgment && acknowledgment.success) {
                 console.log("✅ Client acknowledged location update:", acknowledgment.message);
