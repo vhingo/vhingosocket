@@ -41,7 +41,7 @@ io.on('connection', (socket) => {
     socket.emit("userConnected", "Connected Successfully");
 
     //update code for
-    socket.on("tracking", async (btnKaMsg) => {
+socket.on("tracking", async (btnKaMsg) => {
   try {
     const room = btnKaMsg?.room;
     const longitude = btnKaMsg?.location?.longitude;
@@ -58,45 +58,22 @@ io.on('connection', (socket) => {
       UPDATE vendorlocations 
       SET latitude = ?, longitude = ?, tracking_status = ? 
       WHERE vendor_id = ?`;
-    const result = await query(updateQuery, [latitude, longitude, tracking_status, room]);
-    console.log("✅ Location updated successfully in DB for vendor:", room);
+    await query(updateQuery, [latitude, longitude, tracking_status, room]);
+    console.log(`✅ Location updated for vendor_id: ${room}`);
 
-    // 🧭 Step 2: Join Room (if not already)
+    // 🧭 Step 2: Join Room
     socket.join(room);
+    socket.emit("room connected", `✅ Joined room ${room}`);
     console.log(`🚪 Socket ${socket.id} joined room ${room}`);
 
-    // Confirm to sender
-    socket.emit("room connected", `✅ Joined room ${room}`);
-
-    // Debug log incoming data
+    // 🧭 Step 3: Debug Data
     console.log("📦 Received tracking data:", btnKaMsg);
 
-    // Optional: Notify other clients in the room
+    // 🧭 Step 4: Broadcast to all clients in room
     socket.to(room).emit("message received", btnKaMsg);
+    io.to(room).emit("track location", btnKaMsg);
 
-    // 🧭 Step 3: Check clients in room
-    const clients = await io.in(room).fetchSockets();
-    console.log(`👥 Room '${room}' has ${clients.length} connected clients`);
-    clients.forEach(c => console.log("📡 Client ID in room:", c.id));
-
-    if (clients.length === 0) {
-      console.warn(`⚠️ No clients in room '${room}' to receive tracking data`);
-      return;
-    }
-
-    // 🧭 Step 4: Emit event with acknowledgment
-    console.log("🛰️ Sending 'track location' event:", btnKaMsg);
-
-    io.timeout(5000).to(room).emit("track location", btnKaMsg, (err, responses) => {
-      if (err) {
-        console.error("⏰ Timeout error details:", err);
-      } else if (responses && responses.length > 0) {
-        console.log("✅ Received acknowledgments from clients:");
-        responses.forEach((res, i) => console.log(`  Client ${i + 1}:`, res));
-      } else {
-        console.warn("⚠️ No acknowledgment responses received from clients");
-      }
-    });
+    console.log(`📡 "track location" sent to room: ${room}`);
 
   } catch (e) {
     console.error("💥 Error in tracking handler:", e);
