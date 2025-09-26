@@ -42,52 +42,68 @@ io.on('connection', (socket) => {
 
     //update code for
     socket.on("tracking", async (btnKaMsg) => {
-        try {
-            const room = btnKaMsg.room;
-            const longitude = btnKaMsg.location.longitude;
-            const latitude = btnKaMsg.location.latitude;
-            const tracking_status = btnKaMsg.status;
+  try {
+    const room = btnKaMsg?.room;
+    const longitude = btnKaMsg?.location?.longitude;
+    const latitude = btnKaMsg?.location?.latitude;
+    const tracking_status = btnKaMsg?.status || null;
 
+    if (!room || !latitude || !longitude) {
+      console.warn("⚠️ Missing required tracking data:", btnKaMsg);
+      return socket.emit("tracking-error", "Invalid tracking data received");
+    }
 
-            const updateQuery = "UPDATE vendorlocations SET latitude = ?, longitude = ?, tracking_status = ? WHERE vendor_id = ?";
-            const result = await query(updateQuery, [latitude, longitude, tracking_status, room]);
-            console.log("result update successfully");
+    // 🧭 Step 1: Update DB
+    const updateQuery = `
+      UPDATE vendorlocations 
+      SET latitude = ?, longitude = ?, tracking_status = ? 
+      WHERE vendor_id = ?`;
+    const result = await query(updateQuery, [latitude, longitude, tracking_status, room]);
+    console.log("✅ Location updated successfully in DB for vendor:", room);
 
-            socket.join(room);
-            socket.emit("room connected", "Ho gaya room connection");
-            console.log("location", btnKaMsg);
-            socket.to(room).emit("message received", btnKaMsg);
-            // io.to(room).emit("track location", btnKaMsg);
+    // 🧭 Step 2: Join Room (if not already)
+    socket.join(room);
+    console.log(`🚪 Socket ${socket.id} joined room ${room}`);
 
-            // io.to(room).emit("track location", btnKaMsg, (acknowledgment) => {
-            //     if (acknowledgment.success) {
-            //         console.log("Client acknowledged location update:", acknowledgment.message);
-            //     } else {
-            //         console.error("Client reported an error:", acknowledgment.message);
-            //     }
-            // });
+    // Confirm to sender
+    socket.emit("room connected", `✅ Joined room ${room}`);
 
-                io.timeout(5000).to(room).emit("track location", btnKaMsg, (err, responses) => {
-                console.log("🛰️ Emitting 'track location' to room:", room, "with data:", btnKaMsg);
+    // Debug log incoming data
+    console.log("📦 Received tracking data:", btnKaMsg);
 
-                if (err) {
-                    console.error("⏰ Timeout error details:", err);
-                } else {
-                    console.log("✅ Acknowledgments received:", responses);
-                }
-                });
+    // Optional: Notify other clients in the room
+    socket.to(room).emit("message received", btnKaMsg);
 
+    // 🧭 Step 3: Check clients in room
+    const clients = await io.in(room).fetchSockets();
+    console.log(`👥 Room '${room}' has ${clients.length} connected clients`);
+    clients.forEach(c => console.log("📡 Client ID in room:", c.id));
 
+    if (clients.length === 0) {
+      console.warn(`⚠️ No clients in room '${room}' to receive tracking data`);
+      return;
+    }
 
+    // 🧭 Step 4: Emit event with acknowledgment
+    console.log("🛰️ Sending 'track location' event:", btnKaMsg);
 
-
-
-        } catch (e) {
-            console.log("error", e);
-        }
-
-
+    io.timeout(5000).to(room).emit("track location", btnKaMsg, (err, responses) => {
+      if (err) {
+        console.error("⏰ Timeout error details:", err);
+      } else if (responses && responses.length > 0) {
+        console.log("✅ Received acknowledgments from clients:");
+        responses.forEach((res, i) => console.log(`  Client ${i + 1}:`, res));
+      } else {
+        console.warn("⚠️ No acknowledgment responses received from clients");
+      }
     });
+
+  } catch (e) {
+    console.error("💥 Error in tracking handler:", e);
+    socket.emit("tracking-error", "Server error while processing tracking data");
+  }
+});
+
 
     //for chats
     socket.on("setup", (socketId) => {
