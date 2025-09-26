@@ -67,16 +67,16 @@ io.on('connection', (socket) => {
             //     }
             // });
 
-            io.timeout(5000).to(room).emit("track location", btnKaMsg, (acknowledgment) => {
-            // 🧱 Always check if callback exists & is valid
-            if (acknowledgment && acknowledgment.success) {
-                console.log("✅ Client acknowledged location update:", acknowledgment.message);
-            } else if (acknowledgment && !acknowledgment.success) {
-                console.warn("⚠️ Client reported an error:", acknowledgment.message);
-            } else {
-                console.warn("⚠️ No acknowledgment received from client or invalid format");
-            }
-            });
+                io.timeout(5000).to(room).emit("track location", btnKaMsg, (err, responses) => {
+                console.log("🛰️ Emitting 'track location' to room:", room, "with data:", btnKaMsg);
+
+                if (err) {
+                    console.error("⏰ Timeout error details:", err);
+                } else {
+                    console.log("✅ Acknowledgments received:", responses);
+                }
+                });
+
 
 
 
