@@ -42,49 +42,40 @@ io.on('connection', (socket) => {
 
     //update code for
     socket.on("tracking", async (btnKaMsg) => {
-    try {
-        // 🧭 Extract data safely
-        const room = btnKaMsg?.room;
-        const longitude = btnKaMsg?.location?.longitude;
-        const latitude = btnKaMsg?.location?.latitude;
-        const tracking_status = btnKaMsg?.status ?? "";
+        try {
+            const room = btnKaMsg.room;
+            const longitude = btnKaMsg.location.longitude;
+            const latitude = btnKaMsg.location.latitude;
+            const tracking_status = btnKaMsg.status;
 
-        if (!room || !latitude || !longitude) {
-        console.warn("Missing required tracking data:", btnKaMsg);
-        return;
+
+            const updateQuery = "UPDATE vendorlocations SET latitude = ?, longitude = ?, tracking_status = ? WHERE vendor_id = ?";
+            const result = await query(updateQuery, [latitude, longitude, tracking_status, room]);
+            console.log("result update successfully");
+
+            socket.join(room);
+            socket.emit("room connected", "Ho gaya room connection");
+            console.log("location", btnKaMsg);
+            socket.to(room).emit("message received", btnKaMsg);
+            // io.to(room).emit("track location", btnKaMsg);
+
+            io.to(room).emit("track location", btnKaMsg, (acknowledgment) => {
+                if (acknowledgment.success) {
+                    console.log("Client acknowledged location update:", acknowledgment.message);
+                } else {
+                    console.error("Client reported an error:", acknowledgment.message);
+                }
+            });
+
+
+
+
+        } catch (e) {
+            console.log("error", e);
         }
 
-        // 🧩 Update vendor location in DB
-        const updateQuery = `
-        UPDATE vendorlocations 
-        SET latitude = ?, longitude = ?, tracking_status = ? 
-        WHERE vendor_id = ?
-        `;
-        await query(updateQuery, [latitude, longitude, tracking_status, room]);
-        console.log("✅ Result update successfully");
 
-        // 🧠 Join room (safe)
-        socket.join(room);
-        socket.emit("room connected", `Room ${room} joined successfully`);
-        console.log("📍 Location payload:", btnKaMsg);
-
-        // 💬 Notify other users in room
-        socket.to(room).emit("message received", btnKaMsg);
-
-        // 🚀 Emit track location with acknowledgment (safe)
-        io.to(room).emit("track location", btnKaMsg, (acknowledgment) => {
-        if (acknowledgment && acknowledgment.success) {
-            console.log("✅ Client acknowledged location update:", acknowledgment.message);
-        } else {
-            console.warn("⚠️ No acknowledgment or invalid response from client");
-        }
-        });
-
-    } catch (error) {
-        console.error("❌ Error in tracking event:", error);
-    }
     });
-
 
     //for chats
     socket.on("setup", (socketId) => {
@@ -145,4 +136,3 @@ io.on('connection', (socket) => {
         console.log('Disconnect');
     });
 });
-
